@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Profil - Mobil Bankacılık</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+    margin: 0; padding: 20px;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark {
+    background: #121212;
+    color: white;
+  }
+  .container {
+    max-width: 450px;
+    margin: auto;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    padding: 20px;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark .container {
+    background: #1e1e1e;
+  }
+  h2 {
+    text-align: center;
+    color: #00796b;
+  }
+  .avatar-wrapper {
+    position: relative;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 20px;
+  }
+  .avatar {
+    width: 120px;
+    height: 120px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #00796b;
+    cursor: pointer;
+    display: block;
+  }
+  #avatarCropCanvas {
+    display: none;
+    margin: 10px auto;
+    border-radius: 50%;
+    border: 2px solid #00796b;
+  }
+  label {
+    font-weight: bold;
+    margin-top: 10px;
+    display: block;
+  }
+  input[type="text"], input[type="email"], input[type="password"], input[type="number"] {
+    width: 100%;
+    padding: 10px;
+    margin-top: 6px;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1em;
+    transition: background 0.3s, color 0.3s;
+  }
+  body.dark input {
+    background: #2c2c2c;
+    color: white;
+    border: 1px solid #555;
+  }
+  .password-wrapper {
+    position: relative;
+  }
+  .toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 0.9em;
+    color: #00796b;
+    user-select: none;
+  }
+  button {
+    margin-top: 15px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    background: #00796b;
+    color: white;
+    font-size: 1em;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: background 0.3s;
+  }
+  button:hover {
+    background: #004d40;
+  }
+  .danger {
+    background: #c62828;
+  }
+  .danger:hover {
+    background: #7f0000;
+  }
+  .theme-toggle {
+    margin: 15px 0;
+    text-align: center;
+  }
+  .message {
+    margin-top: 10px;
+    font-weight: bold;
+  }
+  .message.error {
+    color: red;
+  }
+  .message.success {
+    color: green;
+  }
+  nav {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background-color: #00796b;
+    color: white;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px;
+    font-size: 0.9em;
+  }
+  nav a {
+    color: white;
+    text-decoration: none;
+  }
+  nav a.active {
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h2>Profilim</h2>
+
+  <div class="avatar-wrapper">
+    <img id="avatar" class="avatar" src="" alt="Profil Fotoğrafı" title="Profil Fotoğrafını Değiştir" onclick="document.getElementById('avatarInput').click()" />
+    <canvas id="avatarCropCanvas" width="120" height="120"></canvas>
+  </div>
+  <input type="file" id="avatarInput" accept="image/*" style="display:none" onchange="handleAvatarChange(event)" />
+
+  <label for="username">Kullanıcı Adı</label>
+  <input type="text" id="username" disabled />
+
+  <label for="email">E-posta</label>
+  <input type="email" id="email" placeholder="E-posta giriniz" />
+
+  <label for="currentPassword">Mevcut Şifre</label>
+  <div class="password-wrapper">
+    <input type="password" id="currentPassword" placeholder="Mevcut şifrenizi girin" />
+    <span class="toggle-password" onclick="togglePasswordVisibility('currentPassword', this)">Göster</span>
+  </div>
+
+  <label for="newPassword">Yeni Şifre</label>
+  <div class="password-wrapper">
+    <input type="password" id="newPassword" placeholder="Yeni şifre girin" />
+    <span class="toggle-password" onclick="togglePasswordVisibility('newPassword', this)">Göster</span>
+  </div>
+
+  <button onclick="updateProfile()">Profil Güncelle</button>
+
+  <div class="theme-toggle">
+    <label><input type="checkbox" id="darkModeToggle" onchange="toggleDarkMode()"> Karanlık Mod</label>
+  </div>
+
+  <button class="danger" onclick="deleteAccount()">Hesabı Sil</button>
+  <button class="danger" onclick="logout()">Çıkış Yap</button>
+
+  <p id="msg" class="message"></p>
+</div>
+
+<nav>
+  <a href="para.html">Para</a>
+  <a href="doviz.html">Döviz</a>
+  <a href="profil.html" class="active">Profil</a>
+  <a href="gecmis.html">Hesap Geçmişi</a>
+</nav>
+
+<script>
+  let currentUser = localStorage.getItem('currentUser');
+  if (!currentUser) {
+    alert('Lütfen önce giriş yapınız!');
+    window.location.href = 'login.html';
+  }
+
+  let users = JSON.parse(localStorage.getItem('users')) || {};
+  let userData = users[currentUser];
+
+  const avatarImg = document.getElementById('avatar');
+  const avatarCanvas = document.getElementById('avatarCropCanvas');
+  const ctx = avatarCanvas.getContext('2d');
+
+  window.onload = () => {
+    if (!userData) {
+      alert('Kullanıcı bulunamadı!');
+      localStorage.removeItem('currentUser');
+      window.location.href = 'login.html';
+      return;
+    }
+    document.getElementById('username').value = currentUser;
+    document.getElementById('email').value = userData.email || '';
+
+    if (userData.avatar) {
+      loadAndCropAvatar(userData.avatar);
+    } else {
+      avatarImg.src = 'https://via.placeholder.com/120?text=Profil';
+    }
+
+    // Karanlık mod ayarı
+    if (localStorage.getItem('darkMode') === 'true') {
+      document.body.classList.add('dark');
+      document.getElementById('darkModeToggle').checked = true;
+    }
+  };
+
+  // Yüklenen resmi al, kırp ve göster
+  function loadAndCropAvatar(src) {
+    const img = new Image();
+    img.onload = () => {
+      const size = 120;
+      const minSide = Math.min(img.width, img.height);
+      const sx = (img.width - minSide) / 2;
+      const sy = (img.height - minSide) / 2;
+
+      avatarCanvas.width = size;
+      avatarCanvas.height = size;
+      ctx.clearRect(0, 0, size, size);
+      ctx.beginPath();
+      ctx.arc(size / 2, size / 2, size / 2, 0, Math.PI * 2);
+      ctx.closePath();
+      ctx.clip();
+      ctx.drawImage(img, sx, sy, minSide, minSide, 0, 0, size, size);
+
+      avatarCanvas.style.display = 'block';
+      avatarImg.style.display = 'none';
+    };
+    img.src = src;
+  }
+
+  // Avatar değiştiğinde crop ve kaydet
+  function handleAvatarChange(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+      loadAndCropAvatar(e.target.result);
+
+      // Kaydetmek için crop edilmiş resmi base64 al
+      setTimeout(() => {
+        const croppedDataUrl = avatarCanvas.toDataURL('image/png');
+        userData.avatar = croppedDataUrl;
+        saveUserData();
+        showMessage('Profil fotoğrafı güncellendi.');
+      }, 100);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  // Parola gizleme/gösterme toggler
+  function togglePasswordVisibility(inputId, spanElem) {
+    const input = document.getElementById(inputId);
+    if (input.type === 'password') {
+      input.type = 'text';
+      spanElem.textContent = 'Gizle';
+    } else {
+      input.type = 'password';
+      spanElem.textContent = 'Göster';
+    }
+  }
+
+  // Profil güncelleme
+  function updateProfile() {
+    const email = document.getElementById('email').value.trim();
+    const currentPass = document.getElementById('currentPassword').value;
+    const newPass = document.getElementById('newPassword').value;
+
+    if (!validateEmail(email)) {
+      showMessage('Geçerli bir e-posta giriniz.', true);
+      return;
+    }
+
+    if ((currentPass || newPass) && !userData.password) {
+      showMessage('Şifre bilgisi bulunamadı.', true);
+      return;
+    }
+
+    if (currentPass && currentPass !== userData.password) {
+      showMessage('Mevcut şifre yanlış.', true);
+      return;
+    }
+
+    if (newPass && newPass.length < 6) {
+      showMessage('Yeni şifre en az 6 karakter olmalı.', true);
+      return;
+    }
+
+    if (newPass) {
+      userData.password = newPass;
+    }
+
+    userData.email = email;
+    saveUserData();
+    clearPasswordFields();
+    showMessage('Profil başarıyla güncellendi.');
+  }
+
+  function validateEmail(email) {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(email);
+  }
+
+  function saveUserData() {
+    users[currentUser] = userData;
+    localStorage.setItem('users', JSON.stringify(users));
+  }
+
+  function clearPasswordFields() {
+    document.getElementById('currentPassword').value = '';
+    document.getElementById('newPassword').value = '';
+  }
+
+  function deleteAccount() {
+    if (confirm('Hesabınızı silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) {
+      delete users[currentUser];
+      localStorage.setItem('users', JSON.stringify(users));
+      localStorage.removeItem('currentUser');
+      alert('Hesabınız silindi.');
+      window.location.href = 'login.html';
+    }
+  }
+
+  function logout() {
+    localStorage.removeItem('currentUser');
+    alert('Başarıyla çıkış yaptınız!');
+    window.location.href = 'login.html';
+  }
+
+  function showMessage(msg, isError = false) {
+    const p = document.getElementById('msg');
+    p.textContent = msg;
+    p.className = 'message ' + (isError ? 'error' : 'success');
+  }
+
+  // Karanlık mod toggle
+  function toggleDarkMode() {
+    if (document.getElementById('darkModeToggle').checked) {
+      document.body.classList.add('dark');
+      localStorage.setItem('darkMode', 'true');
+    } else {
+      document.body.classList.remove('dark');
+      localStorage.setItem('darkMode', 'false');
+    }
+  }
+</script>
+
+</body>
+</html>

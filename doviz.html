@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Döviz İşlemleri - Mobil Bankacılık</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+    margin: 0; padding: 0;
+  }
+  .container {
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  input, button, select {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1em;
+  }
+  button {
+    background: #00796b;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #004d40;
+  }
+  nav {
+    background: #00796b;
+    color: white;
+    padding: 10px;
+    text-align: center;
+  }
+  nav a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="para.html">Para</a>
+  <a href="doviz.html" style="text-decoration: underline;">Döviz</a>
+  <a href="profil.html">Profil</a>
+  <a href="gecmis.html">Hesap Geçmişi</a>
+  <button onclick="logout()" style="float:right; margin-right:15px; background:#c62828;">Çıkış</button>
+</nav>
+
+<div class="container">
+  <h3>💱 Döviz ve Altın İşlemleri</h3>
+  <select id="tur">
+    <option value="usd">USD</option>
+    <option value="eur">EUR</option>
+    <option value="altin">Altın (gram)</option>
+  </select>
+  <input type="number" id="miktar" placeholder="Miktar" />
+  <button onclick="al()">Al</button>
+  <button onclick="sat()">Sat</button>
+  <p><strong>Varlıklar:</strong> <span id="varliklar">USD: 38 | EUR: 42 | ALTIN: 3500</span></p>
+  <p><strong>Bakiye:</strong> <span id="bakiye">0.00</span> TL</p>
+  <p><strong>Güncel Kurlar:</strong> <span id="kurlar">Yükleniyor...</span></p>
+</div>
+
+<script>
+  let currentUser = localStorage.getItem('currentUser');
+  if(!currentUser) {
+    alert('Lütfen önce giriş yapınız!');
+    window.location.href = 'login.html';
+  }
+  let users = JSON.parse(localStorage.getItem('users')) || {};
+  let userData = users[currentUser];
+  if(!userData) {
+    alert('Kullanıcı bulunamadı!');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+  }
+
+  let kurlar = {};
+
+  async function kurGetir() {
+    try {
+      const res = await fetch('https://api.exchangerate.host/latest?base=TRY&symbols=USD,EUR,XAU');
+      const json = await res.json();
+      kurlar = {
+        usd: 1 / json.rates.USD,
+        eur: 1 / json.rates.EUR,
+        altin: 1 / json.rates.XAU
+      };
+      document.getElementById('kurlar').textContent = `USD: ${kurlar.usd.toFixed(2)} | EUR: ${kurlar.eur.toFixed(2)} | ALTIN: ${kurlar.altin.toFixed(2)}`;
+      updateUI();
+    } catch(e) {
+      document.getElementById('kurlar').textContent = 'Kur alınamadı';
+    }
+  }
+  kurGetir();
+  setInterval(kurGetir, 60000);
+
+  function al() {
+    const tur = document.getElementById('tur').value;
+    const miktar = parseFloat(document.getElementById('miktar').value);
+    if(isNaN(miktar) || miktar <= 0) return alert('Geçerli miktar girin!');
+    const tutar = miktar * kurlar[tur];
+    if(userData.balance < tutar) return alert('Yetersiz bakiye!');
+    userData.balance -= tutar;
+    userData.assets[tur] = (userData.assets[tur] || 0) + miktar;
+    addTransaction(`${tur.toUpperCase()} Alım`, miktar, tutar);
+    saveData();
+    updateUI();
+  }
+
+  function sat() {
+    const tur = document.getElementById('tur').value;
+    const miktar = parseFloat(document.getElementById('miktar').value);
+    if(isNaN(miktar) || miktar <= 0) return alert('Geçerli miktar girin!');
+    if(!userData.assets[tur] || userData.assets[tur] < miktar) return alert('Yetersiz varlık!');
+    const tutar = miktar * kurlar[tur];
+    userData.assets[tur] -= miktar;
+    userData.balance += tutar;
+    addTransaction(`${tur.toUpperCase()} Satım`, miktar, tutar);
+    saveData();
+    updateUI();
+  }
+
+  function addTransaction(type, amount, cost) {
+    userData.transactions = userData.transactions || [];
+    userData.transactions.push({
+      type,
+      amount,
+      cost,
+      date: new Date().toLocaleString()
+    });
+  }
+
+  function saveData() {
+    users[currentUser] = userData;
+    localStorage.setItem('users', JSON.stringify(users));
+  }
+
+  function updateUI() {
+    document.getElementById('bakiye').textContent = userData.balance.toFixed(2);
+    const varliklar = `USD: ${(userData.assets.usd||0).toFixed(2)} | EUR: ${(userData.assets.eur||0).toFixed(2)} | ALTIN: ${(userData.assets.altin||0).toFixed(2)}`;
+    document.getElementById('varliklar').textContent = varliklar;
+  }
+
+  updateUI();
+
+  function logout() {
+    localStorage.removeItem('currentUser');
+    alert('Başarıyla çıkış yaptınız!');
+    window.location.href = 'login.html';
+  }
+</script>
+
+</body>
+</html>

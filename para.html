@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Para İşlemleri - Mobil Bankacılık</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+    margin: 0; padding: 0;
+  }
+  .container {
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    background: white;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  input, button {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1em;
+  }
+  button {
+    background: #00796b;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #004d40;
+  }
+  nav {
+    background: #00796b;
+    color: white;
+    padding: 10px;
+    text-align: center;
+  }
+  nav a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  .faiz-bilgisi {
+    margin-top: 15px;
+    font-weight: bold;
+    color: #004d40;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="para.html" style="text-decoration: underline;">Para</a>
+  <a href="doviz.html">Döviz</a>
+  <a href="profil.html">Profil</a>
+  <a href="gecmis.html">Hesap Geçmişi</a>
+  <button onclick="logout()" style="float:right; margin-right:15px; background:#c62828;">Çıkış</button>
+</nav>
+
+<div class="container">
+  <h3>💰 Para İşlemleri</h3>
+  <input type="number" id="deposit" placeholder="Yatırılacak Tutar (TL)" />
+  <button onclick="yatir()">Para Yatır</button>
+  <input type="number" id="withdraw" placeholder="Çekilecek Tutar (TL)" />
+  <button onclick="cek()">Para Çek</button>
+
+  <p><strong>Bakiye:</strong> <span id="bakiye">0.00</span> TL</p>
+
+  <!-- Faiz oranı inputu -->
+  <input type="number" id="faizOrani" placeholder="Günlük Faiz Oranı (%)" min="0" step="0.01" />
+  <p class="faiz-bilgisi">Toplam Faiz Getirisi: <span id="faizGetirisi">0.00</span> TL</p>
+</div>
+
+<script>
+  let currentUser = localStorage.getItem('currentUser');
+  if(!currentUser) {
+    alert('Lütfen önce giriş yapınız!');
+    window.location.href = 'login.html';
+  }
+
+  let users = JSON.parse(localStorage.getItem('users')) || {};
+  let userData = users[currentUser];
+  if(!userData) {
+    alert('Kullanıcı bulunamadı!');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+  }
+
+  // Başlangıç değerleri
+  if(userData.interest === undefined) userData.interest = 0;
+  if(!userData.lastInterestDate) userData.lastInterestDate = new Date().toISOString();
+
+  // Faiz oranı inputuna kayıtlı son faiz oranını koy (eğer varsa)
+  document.getElementById('faizOrani').value = userData.dailyInterestRate || '';
+
+  // Fonksiyonlar
+  function yatir(){
+    let val = parseFloat(document.getElementById('deposit').value);
+    if(isNaN(val) || val <= 0) return alert('Geçerli bir tutar giriniz!');
+    userData.balance += val;
+    addTransaction('Para Yatırma', val);
+    saveData();
+    updateUI();
+  }
+
+  function cek(){
+    let val = parseFloat(document.getElementById('withdraw').value);
+    if(isNaN(val) || val <= 0) return alert('Geçerli bir tutar giriniz!');
+    if(userData.balance < val) return alert('Yetersiz bakiye!');
+    userData.balance -= val;
+    addTransaction('Para Çekme', val);
+    saveData();
+    updateUI();
+  }
+
+  function otomatikFaizEkle() {
+    let faizOrani = parseFloat(document.getElementById('faizOrani').value);
+    if(isNaN(faizOrani) || faizOrani < 0) return; // geçerli faiz yoksa işlem yok
+
+    let sonFaiz = new Date(userData.lastInterestDate);
+    let simdi = new Date();
+    let farkMs = simdi - sonFaiz;
+    const birGunMs = 24 * 60 * 60 * 1000;
+
+    if(farkMs >= birGunMs){
+      let gunSayisi = Math.floor(farkMs / birGunMs);
+      let toplamFaiz = 0;
+
+      for(let i=0; i < gunSayisi; i++){
+        let faiz = userData.balance * (faizOrani / 100);
+        userData.balance += faiz;
+        userData.interest += faiz;
+        toplamFaiz += faiz;
+        addTransaction('Otomatik Gün Sonu Faiz', faiz);
+      }
+
+      userData.lastInterestDate = new Date(sonFaiz.getTime() + gunSayisi * birGunMs).toISOString();
+      userData.dailyInterestRate = faizOrani; // Günlük faiz oranını kaydet
+      saveData();
+      updateUI();
+      alert(`${gunSayisi} gün için toplam ${toplamFaiz.toFixed(2)} TL faiz eklendi.`);
+    } else {
+      userData.dailyInterestRate = faizOrani; // Günlük faiz oranını kaydet (faiz eklenmese de)
+      saveData();
+    }
+  }
+
+  function addTransaction(type, amount){
+    userData.transactions = userData.transactions || [];
+    userData.transactions.push({
+      type,
+      amount,
+      date: new Date().toLocaleString()
+    });
+  }
+
+  function saveData(){
+    users[currentUser] = userData;
+    localStorage.setItem('users', JSON.stringify(users));
+  }
+
+  function updateUI(){
+    document.getElementById('bakiye').textContent = userData.balance.toFixed(2);
+    document.getElementById('faizGetirisi').textContent = (userData.interest || 0).toFixed(2);
+  }
+
+  updateUI();
+
+  // Sayfa yüklendiğinde otomatik faiz ekle
+  window.onload = function(){
+    otomatikFaizEkle();
+  }
+
+  function logout(){
+    localStorage.removeItem('currentUser');
+    alert('Başarıyla çıkış yaptınız!');
+    window.location.href = 'login.html';
+  }
+</script>
+
+</body>
+</html>

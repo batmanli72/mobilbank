@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Hesap Geçmişi - Mobil Bankacılık</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: linear-gradient(to bottom right, #e0f7fa, #ffffff);
+    margin: 0; padding: 0;
+  }
+  nav {
+    background: #00796b;
+    color: white;
+    padding: 10px;
+    text-align: center;
+  }
+  nav a {
+    color: white;
+    margin: 0 15px;
+    text-decoration: none;
+    font-weight: bold;
+  }
+  .container {
+    max-width: 500px;
+    margin: 20px auto;
+    background: white;
+    padding: 20px;
+    border-radius: 15px;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  }
+  ul.transaction-list {
+    max-height: 250px;
+    overflow-y: auto;
+    padding-left: 20px;
+    margin-top: 0;
+  }
+  ul.transaction-list li {
+    margin-bottom: 8px;
+    font-size: 0.9em;
+  }
+  #chart {
+    max-width: 100%;
+    margin-top: 20px;
+  }
+  button.logout-btn {
+    background: #c62828;
+    color: white;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    margin-top: 15px;
+    width: 100%;
+    border-radius: 8px;
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="para.html">Para</a>
+  <a href="doviz.html">Döviz</a>
+  <a href="profil.html">Profil</a>
+  <a href="gecmis.html" style="text-decoration: underline;">Hesap Geçmişi</a>
+  <button onclick="logout()" style="float:right; margin-right:15px; background:#c62828;">Çıkış</button>
+</nav>
+
+<div class="container">
+  <h3>📊 Hesap Geçmişi & Faiz Grafiği</h3>
+  <ul id="transactionList" class="transaction-list"></ul>
+  <canvas id="chart" width="300" height="300"></canvas>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+  let currentUser = localStorage.getItem('currentUser');
+  if(!currentUser) {
+    alert('Lütfen önce giriş yapınız!');
+    window.location.href = 'login.html';
+  }
+  let users = JSON.parse(localStorage.getItem('users')) || {};
+  let userData = users[currentUser];
+  if(!userData) {
+    alert('Kullanıcı bulunamadı!');
+    localStorage.removeItem('currentUser');
+    window.location.href = 'login.html';
+  }
+
+  function updateTransactionList() {
+    const ul = document.getElementById('transactionList');
+    ul.innerHTML = '';
+    if(!userData.transactions || userData.transactions.length === 0){
+      ul.innerHTML = '<li>Henüz işlem yok</li>';
+      return;
+    }
+    userData.transactions.slice().reverse().forEach(t => {
+      let desc = `${t.date} - ${t.type}: ${t.amount.toFixed(2)}`;
+      if(t.cost) desc += ` (Maliyet: ${t.cost.toFixed(2)} TL)`;
+      if(t.gain) desc += ` (Kazanç: ${t.gain.toFixed(2)} TL)`;
+      const li = document.createElement('li');
+      li.textContent = desc;
+      ul.appendChild(li);
+    });
+  }
+
+  let chart = null;
+  function drawChart() {
+    const ctx = document.getElementById('chart').getContext('2d');
+    if(chart) chart.destroy();
+
+    // Grafik için faiz oranı olarak örnek %5 günlük faiz gösteriyoruz
+    let faiz = userData.interest || 0;
+    chart = new Chart(ctx, {
+      type: 'pie',
+      data: {
+        labels: ['Bakiye', 'Faiz Getirisi'],
+        datasets: [{
+          data: [userData.balance, faiz],
+          backgroundColor: ['#4caf50', '#ffc107']
+        }]
+      }
+    });
+  }
+
+  function logout() {
+    localStorage.removeItem('currentUser');
+    alert('Başarıyla çıkış yaptınız!');
+    window.location.href = 'login.html';
+  }
+
+  updateTransactionList();
+  drawChart();
+</script>
+
+</body>
+</html>

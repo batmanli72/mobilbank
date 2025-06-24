@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Giriş - Mobil Bankacılık</title>
+<style>
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #e0f7fa;
+    display: flex;
+    height: 100vh;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+  }
+  .login-container {
+    background: white;
+    padding: 25px;
+    border-radius: 15px;
+    width: 320px;
+    box-shadow: 0 0 15px rgba(0,0,0,0.2);
+  }
+  input, button {
+    width: 100%;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 8px;
+    border: 1px solid #ccc;
+    font-size: 1em;
+  }
+  button {
+    background: #00796b;
+    color: white;
+    border: none;
+    cursor: pointer;
+  }
+  button:hover {
+    background: #004d40;
+  }
+  p {
+    font-size: 0.9em;
+    text-align: center;
+  }
+  p a {
+    color: #00796b;
+    cursor: pointer;
+    text-decoration: underline;
+  }
+</style>
+</head>
+<body>
+  <div class="login-container">
+    <h2>Mobil Bankacılık Giriş</h2>
+    <input type="text" id="kadi" placeholder="Kullanıcı Adı" />
+    <input type="password" id="sifre" placeholder="Şifre" />
+    <button onclick="giris()">Giriş Yap</button>
+    <button onclick="showRegister()">Kayıt Ol</button>
+
+    <div id="registerSection" style="display:none;">
+      <input type="text" id="kadiReg" placeholder="Yeni Kullanıcı Adı" />
+      <input type="password" id="sifreReg" placeholder="Yeni Şifre" />
+      <button onclick="kayit()">Kayıt Ol</button>
+      <button onclick="hideRegister()">İptal</button>
+    </div>
+  </div>
+
+<script>
+  // Kayıtlı kullanıcıları localStorage'dan al
+  let users = JSON.parse(localStorage.getItem('users')) || {};
+
+  function showRegister(){
+    document.getElementById('registerSection').style.display = 'block';
+  }
+  function hideRegister(){
+    document.getElementById('registerSection').style.display = 'none';
+  }
+
+  function kayit(){
+    const kadi = document.getElementById('kadiReg').value.trim();
+    const sifre = document.getElementById('sifreReg').value.trim();
+    if(!kadi || !sifre) return alert('Kullanıcı adı ve şifre boş olamaz!');
+    if(users[kadi]) return alert('Bu kullanıcı adı zaten mevcut!');
+    users[kadi] = { password: sifre, balance: 0, interest: 0, assets: {usd:0, eur:0, altin:0}, transactions: [] };
+    localStorage.setItem('users', JSON.stringify(users));
+    alert('Kayıt başarılı! Giriş yapabilirsiniz.');
+    hideRegister();
+  }
+
+  function giris(){
+    const kadi = document.getElementById('kadi').value.trim();
+    const sifre = document.getElementById('sifre').value.trim();
+    if(users[kadi] && users[kadi].password === sifre){
+      localStorage.setItem('currentUser', kadi);
+      alert('Giriş başarılı! Ana sayfaya yönlendiriliyorsunuz...');
+      window.location.href = 'para.html'; // Ana sayfa olarak para.html açılıyor
+    } else {
+      alert('Kullanıcı adı veya şifre yanlış!');
+    }
+  }
+</script>
+</body>
+</html>
